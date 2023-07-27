@@ -62,7 +62,7 @@ res
 # 
 # Model Results (Scale):
 #   
-#   estimate      se     zval    pval    ci.lb    ci.ub      
+#           estimate      se     zval    pval    ci.lb    ci.ub      
 # intrcpt   -3.3444  0.7451  -4.4882  <.0001  -4.8048  -1.8839  *** 
 # grade2     1.2069  1.3890   0.8689  0.3849  -1.5154   3.9293      
 # grade3     1.0028  1.0903   0.9197  0.3577  -1.1341   3.1397      
@@ -79,7 +79,7 @@ res
 res_unconditional <- update(res, scale = ~ 1)
 anova(res, res_unconditional)
 
-# df     AIC     BIC    AICc   logLik    LRT   pval       QE 
+#          df     AIC     BIC    AICc   logLik    LRT   pval       QE 
 # Full     5 45.6271 54.8778 47.0905 -17.8135               107.1061 
 # Reduced  2 40.9886 44.6889 41.2613 -18.4943 1.3615 0.7146 107.1061 
 
@@ -169,12 +169,9 @@ formulas_to_AICc <- list(
   "AICc" = unlist(lapply(models, function(x) summary(x)$fit.stats["AICc","ML"])),
   "formulas" = formulas
 )
+sorted_indices <- order(formulas_to_AICc$AICc) # get the indices that sort the values in ascending order
 
-# get the indices that sort the values in ascending order
-sorted_indices <- order(formulas_to_AICc$AICc)
-
-# reorder the formulas based on the sorted indices
-res@formulas <- formulas_to_AICc$formulas[sorted_indices]
+res@formulas <- formulas_to_AICc$formulas[sorted_indices] # reorder the formulas based on the sorted indices, save in res object
 
 
 # inspect
@@ -199,7 +196,7 @@ top <- weightable(res)
 top <- top[top$aicc <= min(top$aicc) + 2,]
 top
 
-# model     aicc   weights
+#           model     aicc   weights
 # 1        ~length 38.85428 0.4969226
 # 2 ~year + length 40.54881 0.2129735
 
@@ -212,7 +209,7 @@ plot(res, type="s")
 # calculate importance values manually by adding the weights of each model 
 # in which the relevant variable occurs
 0.496922555 + 0.212973536 + 0.046702210 + 0.016088618  # length:  0.7726869
-0.212973536 + 0.067221246 + 0.016088618 + 0.002861350  # year 0.2991447
+0.212973536 + 0.067221246 + 0.016088618 + 0.002861350  # year:  0.2991447
 0.046702210 + 0.016088618 + 0.008087513 + 0.002861350  # grade: 0.07373969
 
 
