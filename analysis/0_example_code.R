@@ -11,7 +11,9 @@
 
 pacman::p_load(
   dplyr,
-  metafor  # to fit LS models
+  purrr,
+  metafor,  # to fit LS models
+  glmulti # for multimodel selection and inference
 )
 
 # load example dataset that is integrated in the "metafor" package
@@ -71,7 +73,8 @@ res
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-
+# -> no evidence that studies tended to yield more heterogeneous effects across 
+# different school formats (elementary, midele, high-school, college)
  
 # 2.2 likelihood ratio test -----------------------------------------------
 
@@ -128,13 +131,13 @@ permutest(res, seed=1234)
 
 
 
-# 4. multimodel inference -------------------------------------------------
+# 4. multimodel selection and inference ------------------------------------
 # perform multimodel inference to explore multivariable LS models by 
 # modeling all possible combinations between scale moderators
 # for model fitting based on likelihood approaches
 
 
-## 4.1 glmulti -------------------------------------------------------------
+## 4.1 model selection -----------------------------------------------------
 # list of possible location-scale models, fitted with a specified fitting 
 # function for relevant moderators:
 
@@ -153,7 +156,7 @@ formulas  # 2^k = 2^3 = 8 possible models
 
 # define function to fit all possible models
 fit_all_models <- function(formula, data) {
-  rma(yi=yi, vi=vi, mods=~1, scale=formula, data=data)
+  rma(yi=yi, vi=vi, mods=~1, scale=formula, method="ML", data=data)
 }
 
 # save all fitted models in a list to be passed to to the 'glmmulti' function
@@ -181,13 +184,13 @@ print(res)
 # Method: h / Fitting: glm / IC used: aicc
 # Level: 1 / Marginality: FALSE
 # From 8 models:
-#   Best IC: 38.8542780233706
+#   Best IC: 38.3117180679151
 # Best model:
 #   [1] "~length"
-# Evidence weight: 0.496922554541912
-# Worst IC: 49.1685594004916
+# Evidence weight: 0.493386028334476
+# Worst IC: 48.5885508959637
 # 2 models within 2 IC units.
-# 4 models to reach 95% of evidence weight.
+# 4 models to reach 95% of evidence weight..
 
 plot(res) # IC profile
 
@@ -196,9 +199,9 @@ top <- weightable(res)
 top <- top[top$aicc <= min(top$aicc) + 2,]
 top
 
-#           model     aicc   weights
-# 1        ~length 38.85428 0.4969226
-# 2 ~year + length 40.54881 0.2129735
+#            model     aicc   weights
+# 1        ~length 38.31172 0.4933860
+# 2 ~year + length 39.93725 0.2188803
 
 
 # plot relative importance of the model terms
@@ -208,11 +211,9 @@ plot(res, type="s")
 
 # calculate importance values manually by adding the weights of each model 
 # in which the relevant variable occurs
-0.496922555 + 0.212973536 + 0.046702210 + 0.016088618  # length:  0.7726869
-0.212973536 + 0.067221246 + 0.016088618 + 0.002861350  # year:  0.2991447
-0.046702210 + 0.016088618 + 0.008087513 + 0.002861350  # grade: 0.07373969
-
-
+weightable(res)[grepl("length", weightable(res)$model), "weights"] %>% sum() # length:  0.7799159
+weightable(res)[grepl("year", weightable(res)$model), "weights"] %>% sum() # year:  0.3059529
+weightable(res)[grepl("grade", weightable(res)$model), "weights"] %>% sum() # grade: 0.07847294
 
 
 ## 4.2 multimodel inference -----------------------------------------------
@@ -220,23 +221,12 @@ plot(res, type="s")
 # load modified coef function (adapted to LS models)
 source("utils/coef.glmulti_mod.R")
 
-
 # model averaging (done through: coef, produces model-averaged estimates and
 # unconditional CIs)
 coef(res, varweighting="Johnson", select= "all", models=models, formulas_as_vector = formula_vec)
 coef(res, model=models, formulas_as_vector = formula_vec) %>% round(4)
 
-#               Estimate    Uncond. variance Nb models Importance +/- (alpha=0.05)
-# grade2        0.1069           0.0617         4     0.0737           0.4868
-# grade3        0.1047           0.0499         4     0.0737           0.4379
-# grade4       -0.0040           0.0088         4     0.0737           0.1838
-# year          0.0109           0.0006         4     0.2991           0.0473
-# length        0.0412           0.0046         4     0.7727           0.1324
-# intercept_l   0.2027           0.0021         8     1.0000           0.0905
-# intrcpt     -25.1308        2309.8193         8     1.0000          94.1970
-
-
-# reorder
+# reorder and calculate standard errors and p-values
 mmi <- as.data.frame(coef(res, varweighting="Johnson", models=models))
 mmi <- data.frame(Estimate=mmi$Est, SE=sqrt(mmi$Uncond), Importance=mmi$Importance, row.names=row.names(mmi))
 mmi$z <- mmi$Estimate / mmi$SE
@@ -244,24 +234,85 @@ mmi$p <- 2*pnorm(abs(mmi$z), lower.tail=FALSE)
 names(mmi) <- c("Estimate", "Std. Error", "Importance", "z value", "Pr(>|z|)")
 mmi$ci.lb <- mmi[[1]] - qnorm(.975) * mmi[[2]]
 mmi$ci.ub <- mmi[[1]] + qnorm(.975) * mmi[[2]]
-mmi <- mmi[order(mmi$Importance, decreasing=TRUE), c(1,2,4:7,3)]
+mmi <- mmi[order(mmi$Importance, decreasing=TRUE), ]
 
 # inspect model-averaged parameter estimates, which are weighted averages of the
 # model coefficients across the various models (with weights equal to the model 
 # probabilities), conditional on n^k models that we have fitted
 round(mmi, 4)
 
-#             Estimate Std. Error z value Pr(>|z|)     ci.lb   ci.ub Importance
-# intercept_l   0.2027     0.0462  4.3895   0.0000    0.1122  0.2933     1.0000
-# intrcpt     -25.1308    62.8479 -0.3999   0.6893 -148.3104 98.0487     1.0000
-# length        0.0412     0.0690  0.5964   0.5509   -0.0941  0.1765     0.7727
-# year          0.0109     0.0316  0.3445   0.7305   -0.0510  0.0727     0.2991
-# grade2        0.1069     0.5604  0.1908   0.8487   -0.9915  1.2054     0.0737
-# grade3        0.1047     0.4777  0.2191   0.8266   -0.8315  1.0409     0.0737
-# grade4       -0.0040     0.3322 -0.0121   0.9904   -0.6552  0.6471     0.0737
+#             Estimate Std. Error Importance z value Pr(>|z|)     ci.lb    ci.ub
+# intercept_l   0.2012     0.0454     1.0000  4.4309   0.0000    0.1122   0.2903
+# intrcpt     -26.7828    64.7613     1.0000 -0.4136   0.6792 -153.7127 100.1470
+# length        0.0436     0.0713     0.7799  0.6113   0.5410   -0.0962   0.1834
+# year          0.0117     0.0325     0.3060  0.3585   0.7200   -0.0521   0.0754
+# grade2        0.1165     0.5921     0.0785  0.1967   0.8441   -1.0441   1.2770
+# grade3        0.1155     0.5061     0.0785  0.2282   0.8195   -0.8764   1.1074
+# grade4       -0.0071     0.3615     0.0785 -0.0195   0.9844   -0.7156   0.7015
 
 
 # manual cross-check of estimates (estimates * model weights)
-(0.0394*0.016088618 + 0.0364*0.212973536 + 0.0326*0.002861350 + 0.0357*0.067221246)    # year: 0.01087921
-(0.0785*0.016088618 + 0.0768*0.046702210 + 0.0523*0.212973536 + 0.0507*0.496922555)    # length: 0.04118218
-(1.4412*0.016088618 + 1.5146*0.046702210 + 1.1306*0.002861350 + 1.2069*0.008087513)    # grade2: 0.1069179
+data.frame(
+  model = weightable(res)[grepl("length", weightable(res)$model), "model"], 
+  weight = weightable(res)[grepl("length", weightable(res)$model), "weights"],
+  estimate= c(0.0530, 0.0546, 0.0804,0.0817) # model coefficients for 'length'
+) -> model_averaged_estimates 
+
+#                    model     weight estimate
+# 1                ~length 0.49338603   0.0530
+# 2         ~year + length 0.21888032   0.0546
+# 3        ~grade + length 0.04990259   0.0804
+# 4 ~year + grade + length 0.01774696   0.0817
+
+
+sum(model_averaged_estimates$weight * model_averaged_estimates$estimate) 
+# length: 0.04356242
+
+## 4.3 multimodel predictions ---------------------------------------------
+
+# predicted value for studies with 
+
+x <- c("length"=10, # treatment length = 10 weeks
+       "year" = 1996, # publication year 1996
+       "grade2"=0, "grade3"=0, "grade4"=0 # grade = 0 = elementary school
+       )
+
+# loop through all 8 models, compute the predicted value based on each model
+preds <- list()
+
+for (j in 1:res@nbmods) {
+  
+  model <- res@objects[[j]]
+  vars <- names(coef((model))$alpha)[-1]
+  
+  if (length(vars) == 0) {
+    # intercept only model (location and scale)
+    preds[[j]] <- list(-3.0567,0.4674, -3.9728,-2.1406) # models[[8]] -> location estimate, SE, and CI
+    names(preds[[j]]) <- c("pred", "se", "ci.lb", "ci.ub")
+  } else {
+    preds[[j]] <- predict(model, newscale=x[vars])
+  }
+}
+
+# compute a weighted average (using the model weights) of the predicted values 
+# across all models
+data.frame(
+ yhat = sum(weightable(res)$weights* sapply(preds, function(x) x$pred)) # multimodel predicted value
+ ) %>% 
+ mutate(
+   se = sqrt(sum(weightable(res)$weights * sapply(preds, function(x) x$se^2 + (x$pred - yhat)^2))),  # compute the corresponding (unconditional) standard error 
+   CI_lb= yhat + c(-1)*qnorm(.975)*se, # 95% CI for the predicted average standardized mean difference
+   CI_ub= yhat + c(1)*qnorm(.975)*se) %>% 
+  round(4) %>% exp()
+
+# yhat      se      CI_lb     CI_ub
+# 0.05074714 1.97368 0.01338795 0.1923574
+
+# the multimodel predicted average tau^2 for studies with treatment length = 10 weeks, 
+# conducted in elementary schools and published in 1996 is 0.05 [0.01, 0.19].
+
+
+
+
+
+
