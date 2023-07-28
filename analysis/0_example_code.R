@@ -218,8 +218,8 @@ top
 # 0.8 = cutoff to differentiate between (un-)important variables
 plot(res, type="s")
 
-# calculate importance values manually by adding the weights of each model 
-# in which the relevant variable occurs
+# equivalence check: calculate importance values manually by adding the weights 
+# of each model in which the relevant variable occurs
 weightable(res)[grepl("length", weightable(res)$model), "weights"] %>% sum() # length:  0.7799159
 weightable(res)[grepl("year", weightable(res)$model), "weights"] %>% sum() # year:  0.3059529
 weightable(res)[grepl("grade", weightable(res)$model), "weights"] %>% sum() # grade: 0.07847294
