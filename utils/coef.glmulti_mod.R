@@ -8,7 +8,7 @@
 # - icmethod (method for calculating confidence intervals), 
 # - alphaIC (significance level for confidence intervals), and additional arguments
 # - models (list of fitted location-scale models)
-# -formulas_as_vector (list of model formulas)
+# - formulas_as_vector (list of model formulas)
 
 coef.glmulti <- function(res, select="all", varweighting="Buckland", icmethod="Lukacs", alphaIC=0.05, models, formulas_as_vector, ...) 
 {
