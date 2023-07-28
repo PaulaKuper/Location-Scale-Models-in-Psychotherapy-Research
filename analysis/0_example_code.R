@@ -73,8 +73,16 @@ res
 # ---
 #   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
+
 # -> no evidence that studies tended to yield more heterogeneous effects across 
 # different school formats (elementary, midele, high-school, college)
+
+predict(res, newscale= c(0,0,1), transf = exp, digits= 4) # predicted tau^2 for studies in college (grade4)
+
+# pred   ci.lb  ci.ub 
+# 0.0383 0.0082 0.1794    # pred = exp(-3.3444 + 0.0833)
+
+
  
 # 2.2 likelihood ratio test -----------------------------------------------
 
@@ -141,6 +149,7 @@ permutest(res, seed=1234)
 # list of possible location-scale models, fitted with a specified fitting 
 # function for relevant moderators:
 
+dat$year <- dat$year/100
 # select relevant scale moderators
 moderators <- c("year", "grade", "length")
 
@@ -223,8 +232,9 @@ source("utils/coef.glmulti_mod.R")
 
 # model averaging (done through: coef, produces model-averaged estimates and
 # unconditional CIs)
-coef(res, varweighting="Johnson", select= "all", models=models, formulas_as_vector = formula_vec)
-coef(res, model=models, formulas_as_vector = formula_vec) %>% round(4)
+coef(res, varweighting="Johnson", select= "all", models=models, 
+     formulas_as_vector = formula_vec) %>% 
+  round(4)
 
 # reorder and calculate standard errors and p-values
 mmi <- as.data.frame(coef(res, varweighting="Johnson", models=models))
@@ -251,13 +261,14 @@ round(mmi, 4)
 # grade4       -0.0071     0.3615     0.0785 -0.0195   0.9844   -0.7156   0.7015
 
 
-# manual cross-check of estimates (estimates * model weights)
+# equivalence check of estimates (estimates * model weights)
 data.frame(
   model = weightable(res)[grepl("length", weightable(res)$model), "model"], 
   weight = weightable(res)[grepl("length", weightable(res)$model), "weights"],
-  estimate= c(0.0530, 0.0546, 0.0804,0.0817) # model coefficients for 'length'
+  estimate= c(0.0530, 0.0546, 0.0804, 0.0817) # model coefficients for 'length'
 ) -> model_averaged_estimates 
 
+model_averaged_estimates
 #                    model     weight estimate
 # 1                ~length 0.49338603   0.0530
 # 2         ~year + length 0.21888032   0.0546
@@ -273,8 +284,8 @@ sum(model_averaged_estimates$weight * model_averaged_estimates$estimate)
 # predicted value for studies with 
 
 x <- c("length"=10, # treatment length = 10 weeks
-       "year" = 1996, # publication year 1996
-       "grade2"=0, "grade3"=0, "grade4"=0 # grade = 0 = elementary school
+       "year" = 1996/100, # publication year 1996
+       "grade2"=0, "grade3"=0, "grade4"=1 # grade = 4 = college
        )
 
 # loop through all 8 models, compute the predicted value based on each model
@@ -303,13 +314,13 @@ data.frame(
    se = sqrt(sum(weightable(res)$weights * sapply(preds, function(x) x$se^2 + (x$pred - yhat)^2))),  # compute the corresponding (unconditional) standard error 
    CI_lb= yhat + c(-1)*qnorm(.975)*se, # 95% CI for the predicted average standardized mean difference
    CI_ub= yhat + c(1)*qnorm(.975)*se) %>% 
-  round(4) %>% exp()
+  round(4) 
 
-# yhat      se      CI_lb     CI_ub
-# 0.05074714 1.97368 0.01338795 0.1923574
+#  yhat     se   CI_lb   CI_ub
+# -3.0232 0.6802 -4.3563 -1.6901  # predicted effect 
 
 # the multimodel predicted average tau^2 for studies with treatment length = 10 weeks, 
-# conducted in elementary schools and published in 1996 is 0.05 [0.01, 0.19].
+# conducted in college and published in 1996 is 0.05 [0.01, 0.18].
 
 
 
