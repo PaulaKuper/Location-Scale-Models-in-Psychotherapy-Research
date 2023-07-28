@@ -1,12 +1,14 @@
 # model averaging: done through coef
-# adapted code from: https://github.com/cran/glmulti/blob/master/R/glmulti.R
+# modified code from: https://github.com/cran/glmulti/blob/master/R/glmulti.R
 
-#This line defines a function called coef.glmulti, which takes several arguments: 
+#These lines define a function called coef.glmulti, which takes several arguments: 
 # - res (results object from glmulti package), 
 # - select (specifies which models to use), 
 # - varweighting (method for weighting variance), 
 # - icmethod (method for calculating confidence intervals), 
 # - alphaIC (significance level for confidence intervals), and additional arguments
+# - models (list of fitted location-scale models)
+# -formulas_as_vector (list of model formulas)
 
 coef.glmulti <- function(res, select="all", varweighting="Buckland", icmethod="Lukacs", alphaIC=0.05, models, formulas_as_vector, ...) 
 {
@@ -21,9 +23,8 @@ coef.glmulti <- function(res, select="all", varweighting="Buckland", icmethod="L
   
   formulas_orig = map_chr(formulas_vec, ~paste("~", .x))
   formulas_orig = sapply(formulas_orig, function(x) formula(x))
-  
+
   ww = res_weightable[match(formulas_orig, res_weightable$model),]$weights
-  
   
   # define helper function cucu to calculate cumulative weights
   cucu = function(i) sum(ww[1:i])
