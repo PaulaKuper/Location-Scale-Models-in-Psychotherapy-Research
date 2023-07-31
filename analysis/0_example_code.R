@@ -297,7 +297,7 @@ for (j in 1:res@nbmods) {
   
   if (length(vars) == 0) {
     # intercept only model (location and scale)
-    preds[[j]] <- list(-3.0567,0.4674, -3.9728,-2.1406) # models[[8]] -> location estimate, SE, and CI
+    preds[[j]] <- list(-3.0567,0.4674, -3.9728,-2.1406) # models[[8]] -> scale estimate, SE, and CI (intercept only model)
     names(preds[[j]]) <- c("pred", "se", "ci.lb", "ci.ub")
   } else {
     preds[[j]] <- predict(model, newscale=x[vars])
