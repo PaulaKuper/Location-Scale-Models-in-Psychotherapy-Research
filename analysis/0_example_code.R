@@ -45,7 +45,7 @@ unique(dat$id) %>% length()  # N = 48, no multi-arm trials/ multiple outcome mea
 
 ## 2.1 location-scale model  -----------------------------------------------
 
-# grade as scale moderator, tau2 is log transformed
+# grade as scale moderator, tau^2 is log transformed
 res <- rma(yi, vi, scale= ~ grade,  data=dat)
 res
 
@@ -100,13 +100,14 @@ anova(res, res_unconditional)
 # Convergence will be examined for the scale coefficients in the model using 
 # profile likelihood plots, where a particular parameter is fixed and then the 
 # maximized (constrained) log-likelihood is calculated over the remaining 
-# parameters of the scale model (α) (Viechtbauer, 2010). On this basis, a profile of the 
-# (restricted) log-likelihood is constructed.
+# parameters of the scale model (α) (Viechtbauer, 2010). On this basis, a 
+# profile of the (restricted) log-likelihood is constructed.
 
 profile(res)
 
 # 3. sensitivity analysis -------------------------------------------------
-# to examine the robustness of the results
+# to examine the robustness of the results regarding the test for differences
+# in tau^2
 
 ## 3.1 permutation test ---------------------------------------------------
 permutest(res, seed=1234)
@@ -142,16 +143,13 @@ permutest(res, seed=1234)
 # 4. multimodel selection and inference ------------------------------------
 # perform multimodel inference to explore multivariable LS models by 
 # modeling all possible combinations between scale moderators
-# for model fitting based on likelihood approaches
 
 
 ## 4.1 model selection -----------------------------------------------------
-# list of possible location-scale models, fitted with a specified fitting 
-# function for relevant moderators:
 
-dat$year <- dat$year/100
 # select relevant scale moderators
 moderators <- c("year", "grade", "length")
+dat$year <- dat$year/100 # transform to comparable scale
 
 # generate all possible combinations and save as formulas in a list
 sizes <- seq(1, length(moderators)) # allow combinations from 1 to N moderators
@@ -159,6 +157,7 @@ combinations <- unlist(lapply(sizes, function(size) combn(moderators, size,
                                                           simplify = FALSE)), 
                        recursive = FALSE) %>% 
   append("1")# add intercept only model
+
 formulas_vec <- lapply(combinations, function(comb) paste(comb, collapse = "+")) 
 formulas <- lapply(formulas_vec, function(form) formula(paste("~", form))) # as formula
 formulas  # 2^k = 2^3 = 8 possible models
@@ -175,15 +174,17 @@ models <- lapply(formulas, function(form) fit_all_models(form, data=dat))
 # glmulti
 res <- glmulti(models, level=1,  crit="aicc", includeobjects = TRUE)
 
-
 # correct model formulas (needed for multimodel inference)
 formulas_to_AICc <- list(
   "AICc" = unlist(lapply(models, function(x) summary(x)$fit.stats["AICc","ML"])),
   "formulas" = formulas
 )
-sorted_indices <- order(formulas_to_AICc$AICc) # get the indices that sort the values in ascending order
 
-res@formulas <- formulas_to_AICc$formulas[sorted_indices] # reorder the formulas based on the sorted indices, save in res object
+# get the indices that sort the values in ascending order
+sorted_indices <- order(formulas_to_AICc$AICc) 
+
+# reorder the formulas based on the sorted indices, save in res object
+res@formulas <- formulas_to_AICc$formulas[sorted_indices] 
 
 
 # inspect
@@ -214,8 +215,6 @@ top
 
 
 # plot relative importance of the model terms
-# (= sum of the weights for the models in which the variable appears)
-# 0.8 = cutoff to differentiate between (un-)important variables
 plot(res, type="s")
 
 # equivalence check: calculate importance values manually by adding the weights 
@@ -236,7 +235,7 @@ coef(res, varweighting="Johnson", select= "all", models=models,
      formulas_as_vector = formula_vec) %>% 
   round(4)
 
-# reorder and calculate standard errors and p-values
+# reorder and calculate standard errors, CIs and p-values
 mmi <- as.data.frame(coef(res, varweighting="Johnson", models=models))
 mmi <- data.frame(Estimate=mmi$Est, SE=sqrt(mmi$Uncond), Importance=mmi$Importance, row.names=row.names(mmi))
 mmi$z <- mmi$Estimate / mmi$SE
@@ -248,7 +247,7 @@ mmi <- mmi[order(mmi$Importance, decreasing=TRUE), ]
 
 # inspect model-averaged parameter estimates, which are weighted averages of the
 # model coefficients across the various models (with weights equal to the model 
-# probabilities), conditional on n^k models that we have fitted
+# probabilities), conditional on n^k models that are fitted
 round(mmi, 4)
 
 #             Estimate Std. Error Importance z value Pr(>|z|)     ci.lb    ci.ub
@@ -261,7 +260,7 @@ round(mmi, 4)
 # grade4       -0.0071     0.3615     0.0785 -0.0195   0.9844   -0.7156   0.7015
 
 
-# equivalence check of estimates (estimates * model weights)
+# equivalence check of estimates
 data.frame(
   model = weightable(res)[grepl("length", weightable(res)$model), "model"], 
   weight = weightable(res)[grepl("length", weightable(res)$model), "weights"],
