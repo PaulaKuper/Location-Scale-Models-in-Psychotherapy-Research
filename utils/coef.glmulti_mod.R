@@ -2,13 +2,14 @@
 # modified code from: https://github.com/cran/glmulti/blob/master/R/glmulti.R
 
 #These lines define a function called coef.glmulti, which takes several arguments: 
-# - res (results object from glmulti package), 
-# - select (specifies which models to use), 
-# - varweighting (method for weighting variance), 
-# - icmethod (method for calculating confidence intervals), 
-# - alphaIC (significance level for confidence intervals), and additional arguments
+# - res (results object from glmulti package) 
+# - select (specifies which models to use) 
+# - varweighting (method for weighting variance) 
+# - icmethod (method for calculating confidence intervals) 
+# - alphaIC (significance level for confidence intervals) 
 # - models (list of fitted location-scale models)
 # - formulas_as_vector (list of model formulas)
+# - and additional arguments
 
 coef.glmulti <- function(res, select="all", varweighting="Buckland", icmethod="Lukacs", alphaIC=0.05, models, formulas_as_vector, ...) 
 {
@@ -81,7 +82,7 @@ coef.glmulti <- function(res, select="all", varweighting="Buckland", icmethod="L
                                    coef(model)$alpha), 
                       se = c(sqrt(diag(vcov(model)$beta)),
                              sqrt(diag(vcov(model)$alpha))),
-                      df = model$k -model$p)
+                      df = model$k -model$parms)
                 }
   }
   
