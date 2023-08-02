@@ -75,7 +75,7 @@ res
 
 
 # -> no evidence that studies tended to yield more heterogeneous effects across 
-# different school formats (elementary, midele, high-school, college)
+# different school formats (elementary, middle, high-school, college)
 
 predict(res, newscale= c(0,0,1), transf = exp, digits= 4) # predicted tau^2 for studies in college (grade4)
 
@@ -127,7 +127,7 @@ permutest(res, seed=1234)
 # 
 # Model Results (Scale):
 #   
-#   estimate      se     zval    pval¹    ci.lb    ci.ub     
+#             estimate    se     zval    pval¹    ci.lb    ci.ub     
 #   intrcpt   -3.3444  0.7451  -4.4882  0.0060   -4.8048  -1.8839  ** 
 #   grade2     1.2069  1.3890   0.8689  0.2530   -1.5154   3.9293     
 #   grade3     1.0028  1.0903   0.9197  0.2540   -1.1341   3.1397     
@@ -142,7 +142,7 @@ permutest(res, seed=1234)
 
 # 4. multimodel selection and inference ------------------------------------
 # perform multimodel inference to explore multivariable LS models by 
-# modeling all possible combinations between scale moderators
+# modeling all possible combinations between scale moderators (without interactions)
 
 
 ## 4.1 model selection -----------------------------------------------------
@@ -168,13 +168,13 @@ fit_all_models <- function(formula, data) {
 }
 
 # save all fitted models in a list to be passed to to the 'glmmulti' function
-models <- lapply(formulas, function(form) fit_all_models(form, data=dat))
+models <- lapply(formulas, function(form) fit_all_models(form, dat))
 
 
 # glmulti
 res <- glmulti(models, level=1,  crit="aicc", includeobjects = TRUE)
 
-# correct model formulas (needed for multimodel inference)
+# correct model formulas (to print results correctly, needed for multimodel inference)
 formulas_to_AICc <- list(
   "AICc" = unlist(lapply(models, function(x) summary(x)$fit.stats["AICc","ML"])),
   "formulas" = formulas
@@ -297,7 +297,7 @@ for (j in 1:res@nbmods) {
   
   if (length(vars) == 0) {
     # intercept only model (location and scale)
-    preds[[j]] <- list(-3.0567,0.4674, -3.9728,-2.1406) # models[[8]] -> scale estimate, SE, and CI (intercept only model)
+    preds[[j]] <- list(-3.0567,0.4674, -3.9728,-2.1406) # models[[8]] -> scale estimate, SE, and CI 
     names(preds[[j]]) <- c("pred", "se", "ci.lb", "ci.ub")
   } else {
     preds[[j]] <- predict(model, newscale=x[vars])
@@ -311,7 +311,7 @@ data.frame(
  ) %>% 
  mutate(
    se = sqrt(sum(weightable(res)$weights * sapply(preds, function(x) x$se^2 + (x$pred - yhat)^2))),  # compute the corresponding (unconditional) standard error 
-   CI_lb= yhat + c(-1)*qnorm(.975)*se, # 95% CI for the predicted average standardized mean difference
+   CI_lb= yhat + c(-1)*qnorm(.975)*se, # 95% CI 
    CI_ub= yhat + c(1)*qnorm(.975)*se) %>% 
   round(4) 
 
